@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+.DS_Store
+*.log
+.ipynb_checkpoints/
+# O arquivo bruto pode ser baixado da UCI conforme instruções do README.
+# Mantemos apenas saídas tratadas/agregadas necessárias ao projeto.
