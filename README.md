@@ -1,4 +1,4 @@
-# Vendas e desempenho no varejo online: análise com Python e Power BI
+# Vendas e desempenho no varejo online: análise com Python e dashboard HTML
 
 **Projeto de Recuperação — Módulo 2 — Semana 14**
 **Aluno:** Yuri Mello Saraiva
@@ -27,7 +27,7 @@ A fonte é o dataset **Online Retail**, disponibilizado pelo [UCI Machine Learni
 
 A UCI informa licença **Creative Commons Attribution 4.0 International (CC BY 4.0)**, que permite compartilhamento e adaptação com atribuição adequada. A referência recomendada é: Chen, D. (2015). *Online Retail*. UCI Machine Learning Repository. DOI: [10.24432/C5BW33](https://doi.org/10.24432/C5BW33).
 
-A coleta foi feita por download do arquivo público `Online Retail.xlsx` em 16/11/2026. O arquivo original não é necessário para acompanhar o código no GitHub: o script pode ser executado após o download do arquivo para `data/raw/`.
+A coleta foi feita por download do arquivo público `Online Retail.xlsx` em 16/11/2026. O arquivo original não é necessário para abrir o dashboard já gerado, mas é necessário para reproduzir o ETL.
 
 ## 4. Indicadores
 
@@ -39,32 +39,20 @@ A coleta foi feita por download do arquivo público `Online Retail.xlsx` em 16/1
 
 ## 5. Pipeline de dados
 
-### Extração
+### Extração e transformação
 
-O arquivo Excel é lido com `pandas.read_excel()` e `openpyxl`. A origem, o período, os campos e a licença estão documentados neste README.
+O arquivo Excel é lido com `pandas.read_excel()` e `openpyxl`. O pipeline padroniza nomes e textos, converte datas e números, identifica cancelamentos cujo `InvoiceNo` começa com `C`, calcula `Revenue = Quantity × UnitPrice` e exclui cancelamentos, valores não positivos e registros inválidos dos KPIs principais.
 
-### Transformação
-
-1. Padronização de nomes e textos.
-2. Conversão de `InvoiceDate` para data e hora.
-3. Conversão de `Quantity` e `UnitPrice` para valores numéricos.
-4. Identificação de cancelamentos quando `InvoiceNo` começa com `C`.
-5. Criação de `Revenue = Quantity × UnitPrice`.
-6. Exclusão dos cancelamentos e das linhas com quantidade ou preço não positivos.
-7. Exclusão de registros sem data válida ou descrição utilizável.
-8. Criação de dimensões de ano, mês e ano-mês.
-9. Remoção de `CustomerID` do arquivo final por minimização de dados: ele não é necessário para os indicadores agregados.
-
-A decisão de excluir cancelamentos e valores não positivos evita que devoluções ou registros inválidos reduzam artificialmente o faturamento bruto dos KPIs principais. Os cancelamentos continuam contabilizados no diagnóstico de qualidade.
+O arquivo final não inclui `CustomerID`, pois esse campo não é necessário para a análise agregada. As decisões de limpeza estão documentadas no código `src/analise_vendas.py`.
 
 ### Carga
 
-O pipeline salva os seguintes arquivos em `data/processed/`:
+O pipeline salva os arquivos em `data/processed/`:
 
-- `vendas_tratadas.csv`: base de vendas válida, pronta para importação no Power BI;
-- `vendas_mensais.csv`: indicadores agregados por mês;
-- `vendas_por_pais.csv`: indicadores agregados por país;
-- `top_produtos.csv`: ranking dos 20 produtos por faturamento;
+- `vendas_tratadas.csv`: base válida;
+- `vendas_mensais.csv`: agregação mensal;
+- `vendas_por_pais.csv`: agregação por país;
+- `top_produtos.csv`: ranking de produtos;
 - `indicadores.json`: KPIs gerais;
 - `resumo_analitico.txt`: resumo para conferência.
 
@@ -74,9 +62,26 @@ Após o tratamento, foram identificados **530.104 registros de venda válidos**,
 
 O **Reino Unido** concentrou **£9.025.222,08**, aproximadamente 84,6% do faturamento válido calculado. Os países seguintes foram Países Baixos, EIRE, Alemanha e França. Esse resultado indica forte concentração geográfica na operação observada e sugere acompanhar separadamente o mercado doméstico e os mercados internacionais.
 
-Entre os produtos, aparecem no topo por faturamento itens como `REGENCY CAKESTAND 3 TIER`, `PAPER CRAFT, LITTLE BIRDIE`, `WHITE HANGING HEART T-LIGHT HOLDER` e `PARTY BUNTING`. O produto `PAPER CRAFT, LITTLE BIRDIE` deve ser interpretado com cautela, pois possui grande quantidade registrada em apenas um pedido, o que recomenda validação operacional antes de transformá-lo em decisão comercial.
+Entre os produtos, aparecem no topo por faturamento itens como `REGENCY CAKESTAND 3 TIER`, `PAPER CRAFT, LITTLE BIRDIE`, `WHITE HANGING HEART T-LIGHT HOLDER` e `PARTY BUNTING`. O produto `PAPER CRAFT, LITTLE BIRDIE` deve ser interpretado com cautela, pois possui grande quantidade registrada em apenas um pedido, o que recomenda validação operacional.
 
-Os gráficos gerados estão em `outputs/figures/`:
+## 7. Dashboard interativo HTML
+
+A entrega interativa principal é o arquivo [`dashboard.html`](dashboard.html). Ele funciona diretamente no navegador e contém:
+
+- cartões de faturamento, pedidos, itens e ticket médio;
+- filtro por país;
+- filtro por período inicial;
+- gráfico de faturamento mensal;
+- ranking dos 10 produtos por faturamento;
+- faturamento por país;
+- tabela de produtos, faturamento, itens e pedidos;
+- fonte, período, moeda e limitações metodológicas.
+
+Para abrir, baixe o arquivo e abra `dashboard.html` no navegador. O dashboard utiliza Chart.js por CDN; portanto, os gráficos precisam de conexão com a internet na primeira abertura. O arquivo também pode ser publicado pelo GitHub Pages.
+
+A versão HTML substitui o relatório Power BI porque o Power BI Desktop apresentou inconsistências de conversão regional de tipos na importação. O dashboard usa diretamente os dados tratados pelo Python e mantém a rastreabilidade dos indicadores.
+
+As visualizações estáticas de apoio estão em `outputs/figures/`:
 
 ![Faturamento mensal](outputs/figures/01_faturamento_mensal.png)
 
@@ -84,77 +89,61 @@ Os gráficos gerados estão em `outputs/figures/`:
 
 ![Top 10 produtos por faturamento](outputs/figures/03_top_produtos.png)
 
-![Pedidos únicos por mês](outputs/figures/04_pedidos_mensais.png)
-
-## 7. Recomendações
-
-1. Acompanhar o Reino Unido como mercado principal em um painel separado, mantendo uma visão comparativa dos mercados internacionais.
-2. Monitorar mensalmente faturamento, pedidos únicos e ticket médio para identificar períodos de pico e queda.
-3. Validar os produtos líderes junto ao cadastro e à operação, especialmente quando o faturamento estiver concentrado em poucos pedidos.
-4. Evoluir a análise com custo, margem, estoque e devoluções caso esses dados públicos ou autorizados estejam disponíveis em uma etapa futura.
-
-Estas recomendações são hipóteses de uso gerencial baseadas em concentração e comportamento observado. A análise não demonstra que país, produto ou período cause o resultado.
-
-## 8. Relatório Power BI
-
-O relatório deve conter, no mínimo, uma página de visão geral com:
-
-- cartões de faturamento, pedidos, itens e ticket médio;
-- gráfico de linha de faturamento por mês;
-- gráfico de barras de faturamento por país;
-- ranking de produtos;
-- segmentadores para período, país e produto;
-- caixa de texto com fonte, período, moeda e limitações.
-
-Como o Power BI Desktop não está disponível neste ambiente, o arquivo `.pbix` precisa ser criado ou salvo no computador do aluno. O roteiro detalhado, as medidas DAX e os campos recomendados estão em [`docs/POWER_BI_GUIA.md`](docs/POWER_BI_GUIA.md). As imagens em `outputs/figures/` são evidências analíticas produzidas em Python; não substituem o arquivo `.pbix` exigido pelo professor.
-
-## 9. Como executar
+## 8. Como executar
 
 Requisitos: Python 3.10 ou superior.
 
 ```bash
 python -m venv .venv
-# Linux/macOS
-source .venv/bin/activate
-# Windows PowerShell
-# .venv\\Scripts\\Activate.ps1
-
+source .venv/bin/activate          # Linux/macOS
+# .venv\\Scripts\\Activate.ps1    # Windows PowerShell
 pip install -r requirements.txt
 python src/analise_vendas.py
+python src/gerar_dashboard_html.py
 ```
 
-Antes de executar, baixe o arquivo `Online Retail.xlsx` na página da UCI e coloque-o em `data/raw/`. O script não usa credenciais, tokens nem caminhos absolutos.
+Antes de executar, baixe `Online Retail.xlsx` da página da UCI e coloque-o em `data/raw/`. O script de geração cria ou atualiza `dashboard.html` a partir dos arquivos tratados.
 
-## 10. Estrutura do repositório
+Para testar localmente:
+
+```bash
+python -m http.server 8000
+```
+
+Depois abra `http://localhost:8000/dashboard.html`.
+
+## 9. Estrutura do repositório
 
 ```text
-data/raw/                 # arquivo público de entrada, quando permitido
- data/processed/           # saídas tratadas e agregadas
-src/analise_vendas.py      # ETL, indicadores e gráficos
-outputs/figures/           # visualizações geradas
-powerbi/                   # espaço reservado para o .pbix e evidências
- docs/POWER_BI_GUIA.md     # roteiro para montar o relatório
-requirements.txt           # dependências Python
-.gitignore                 # arquivos locais e temporários
-README.md                  # documentação principal
+data/raw/                    # arquivo público de entrada
+data/processed/              # saídas tratadas e agregadas
+src/analise_vendas.py         # ETL, indicadores e gráficos
+src/gerar_dashboard_html.py   # geração do dashboard interativo
+outputs/figures/              # visualizações estáticas
+dashboard.html               # aplicação interativa final
+docs/DICIONARIO_DADOS.md      # dicionário dos campos
+docs/POWER_BI_GUIA.md         # guia histórico da alternativa Power BI
+requirements.txt              # dependências Python
+.gitignore                    # arquivos locais e temporários
+README.md                     # documentação principal
 ```
 
-## 11. Limitações e melhorias futuras
+## 10. Limitações e melhorias futuras
 
 A base está em GBP e não informa custos ou margem. A análise considera faturamento bruto, não lucro. Os dados são históricos e terminam em 09/12/2011; portanto, não devem ser usados para descrever o mercado atual sem atualização. Alguns produtos apresentam concentração atípica em poucos pedidos, o que exige validação. Uma evolução seria incluir calendário comercial, margem, devoluções, estoque e uma camada de qualidade automatizada.
 
-## 12. Tecnologias e referências
+## 11. Tecnologias e referências
 
 - Python, pandas, openpyxl e matplotlib.
-- Power BI Desktop para o relatório interativo.
+- HTML, CSS, JavaScript e Chart.js para o dashboard interativo.
 - [UCI Machine Learning Repository — Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail).
 - [Licença CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-## 13. Links de entrega
+## 12. Links de entrega
 
-- Repositório pessoal: `https://github.com/matadreams/Miniprojeto_YURI_MELLO_T1`
-- Repositório oficial da turma: inserir o link ou procedimento indicado pelo professor.
-- Power BI Service: opcional; inserir somente se o relatório for publicado e o acesso estiver autorizado.
+- Repositório individual: `https://github.com/matadreams/projeto-recuperacao-vendas-yuri`
+- Dashboard: `https://github.com/matadreams/projeto-recuperacao-vendas-yuri/blob/main/dashboard.html`
+- Repositório oficial da turma: inserir somente se o professor exigir uma cópia ou link adicional.
 - Vídeo: opcional.
 
-**Importante:** antes de enviar no AVA, faça o último commit, confira se o README abre corretamente, valide se não existem credenciais no histórico e não altere o repositório depois da submissão, salvo orientação do professor.
+**Importante:** antes de enviar no AVA, faça o último commit, confira se o README e o dashboard abrem corretamente, valide se não existem credenciais no histórico e não altere o repositório depois da submissão, salvo orientação do professor.
